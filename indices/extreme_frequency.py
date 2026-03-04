@@ -1,26 +1,3 @@
-"""
-extreme_frequency.py
---------------------
-Extreme Rainfall Frequency Analysis for the Jakarta region.
-
-Methods:
-    1. Annual Maxima Series (AMS) extraction
-    2. Distribution fitting: GEV and Gumbel
-    3. Parameter estimation: L-moments (preferred) and MLE
-    4. Return level computation: 2, 5, 10, 25, 50, 100 years
-    5. Confidence intervals via bootstrap
-    6. Change in return levels across RCP scenarios
-    7. Flood-relevant threshold exceedance probabilities
-
-GEV distribution:
-    G(x) = exp{-[1 + ξ(x-μ)/σ]^(-1/ξ)}
-    ξ = 0: Gumbel (Type I), ξ > 0: Fréchet (Type II), ξ < 0: Weibull (Type III)
-
-Reference:
-    Coles (2001). An Introduction to Statistical Modeling of Extreme Values.
-    Hosking & Wallis (1997). Regional Frequency Analysis.
-"""
-
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -40,7 +17,7 @@ RETURN_PERIODS = [2, 5, 10, 25, 50, 100]
 JAKARTA_FLOOD_THRESHOLDS = {
     "moderate_flood": 100.0,  # mm/day — widespread moderate flooding
     "severe_flood": 150.0,    # mm/day — severe inundation events
-    "extreme_flood": 200.0,   # mm/day — catastrophic events (e.g., 2007, 2020)
+    "extreme_flood": 200.0,   # mm/day — catastrophic events
 }
 
 
@@ -77,18 +54,6 @@ def lmoments(x: np.ndarray) -> tuple:
 # ── GEV Fitting ───────────────────────────────────────────────────────────────
 
 def fit_gev_lmoments(ams: np.ndarray) -> dict:
-    """
-    Fit GEV distribution using L-moments estimation.
-
-    Parameters
-    ----------
-    ams : np.ndarray
-        Annual maximum series (sorted ascending)
-
-    Returns
-    -------
-    dict with keys: loc (μ), scale (σ), shape (ξ), method
-    """
     l1, l2, l3, l4 = lmoments(ams)
     t3 = l3 / l2  # L-skewness
 
@@ -111,18 +76,6 @@ def fit_gev_lmoments(ams: np.ndarray) -> dict:
 
 
 def fit_gev_mle(ams: np.ndarray) -> dict:
-    """
-    Fit GEV distribution using Maximum Likelihood Estimation.
-
-    Parameters
-    ----------
-    ams : np.ndarray
-        Annual maximum series
-
-    Returns
-    -------
-    dict with keys: loc, scale, shape, method, nll (neg log-likelihood)
-    """
     shape, loc, scale = stats.genextreme.fit(ams)
     nll = -np.sum(stats.genextreme.logpdf(ams, shape, loc=loc, scale=scale))
     return {"loc": loc, "scale": scale, "shape": -shape, "method": "MLE", "nll": nll}
@@ -133,22 +86,6 @@ def compute_return_levels(
     loc: float, scale: float, shape: float,
     return_periods: list = RETURN_PERIODS,
 ) -> dict:
-    """
-    Compute GEV return levels for given return periods.
-
-    x_T = μ - (σ/ξ) × [1 - (-log(1-1/T))^(-ξ)]
-
-    Parameters
-    ----------
-    loc, scale, shape : float
-        GEV parameters (μ, σ, ξ)
-    return_periods : list
-        Return periods in years
-
-    Returns
-    -------
-    dict {T: return_level} in mm/day
-    """
     return_levels = {}
     for T in return_periods:
         p = 1 - 1.0 / T  # non-exceedance probability
@@ -170,13 +107,6 @@ def bootstrap_return_levels(
     ci: float = 0.95,
     method: str = "lmoments",
 ) -> dict:
-    """
-    Bootstrap confidence intervals for return levels.
-
-    Returns
-    -------
-    dict {T: (lower_CI, median, upper_CI)}
-    """
     n = len(ams)
     rl_samples = {T: [] for T in return_periods}
 
@@ -213,10 +143,6 @@ def exceedance_probability(
     loc: float, scale: float, shape: float,
     threshold: float,
 ) -> float:
-    """
-    Probability of exceedance P(X > threshold) using fitted GEV.
-    Returns annual exceedance probability (= 1/return_period).
-    """
     if abs(shape) < 1e-6:
         p_exceed = np.exp(-np.exp(-(threshold - loc) / scale))
     else:
@@ -235,21 +161,6 @@ def spatial_frequency_analysis(
     return_periods: list = RETURN_PERIODS,
     n_bootstrap: int = 500,
 ) -> xr.Dataset:
-    """
-    Apply GEV frequency analysis at each grid cell.
-
-    Parameters
-    ----------
-    ds_indices : xr.Dataset
-        Indices dataset with dims (year, lat, lon)
-    variable : str
-        Which variable to analyse (Rx1day, Rx3day, Rx5day)
-
-    Returns
-    -------
-    xr.Dataset
-        Return levels, GEV parameters, and exceedance probs for each grid cell
-    """
     da = ds_indices[variable]
     nlat = len(ds_indices.lat)
     nlon = len(ds_indices.lon)
