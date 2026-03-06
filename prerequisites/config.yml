@@ -1,5 +1,5 @@
 project:
-  name: "Jakarta Rainfall ErosiviAnalysis"
+  name: "Jakarta Rainfall Erosivity Analysis"
   model: "HadGEM2-AO"
   institution: "MOHC/NIMR-KMA"
 
