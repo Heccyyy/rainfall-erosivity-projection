@@ -11,8 +11,8 @@ from typing import Tuple, Literal
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-WET_DAY_THRESHOLD = 1.0  # mm/day
-N_QUANTILES = 100
+WET_DAY_THRESHOLD = 1.0   # mm/day
+N_QUANTILES = 100         # Number of quantile bins
 
 
 # Empirical QM ====================
@@ -205,6 +205,11 @@ def main(obs, hist, future, output_dir, scenario, method, save_transfer):
     obs_ds = xr.open_dataset(obs, use_cftime=True)
     hist_ds = xr.open_dataset(hist, use_cftime=True)
     future_ds = xr.open_dataset(future, use_cftime=True)
+
+    # Auto-detect CHIRPS variable name ("precip") and rename to "pr" for consistency
+    if "precip" in obs_ds and "pr" not in obs_ds:
+        logger.info("Detected CHIRPS variable 'precip' — renaming to 'pr' for processing.")
+        obs_ds = obs_ds.rename({"precip": "pr"})
 
     # Align temporal overlap between obs and hist
     obs_years = obs_ds.time.dt.year.values
