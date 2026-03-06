@@ -356,7 +356,14 @@ def main(indices_dir, output_dir, scenario, variable, n_bootstrap):
     failed    = []
 
     for scen in scenarios_to_run:
-        # Exact filename produced by precipitation_indices.py
+        # NOTE
+        # Historical bias-correction asymmetry:
+        # For 'historical', precipitation_indices.py reads the raw (uncorrected) HadGEM2-AO file (jakarta_bc_input.nc), NOT a bias-corrected file.
+        # RCP scenarios use bias-corrected output (jakarta_bc_empirical.nc).
+        # This means historical GEV parameters are fitted on raw model data while RCP return levels are fitted on bias-corrected data.  
+        # When comparing historical vs. future return levels, keep this asymmetry in mind:
+        #   - Use historical results as a model-world baseline only.
+        #   - For absolute comparisons against observations, prefer CHIRPS-derived return levels instead.
         fname = f"{MODEL}_{scen}_indices_jakarta.nc"
         fpath = indices_path / fname
 
