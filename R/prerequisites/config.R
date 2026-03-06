@@ -85,7 +85,7 @@ get_jakarta_basemap <- function() {
 
 # Open a CMIP5 or CHIRPS NetCDF and return a terra SpatRasterDataset cropped to Jakarta domain
 #' @param path  Path to .nc file
-#' @param var   Variable name (e.g. "pr", "precip")
+#' @param var   Variable name
 #' @return SpatRaster with time dimension
 open_nc_jakarta <- function(path, var = NULL) {
   r <- terra::rast(path)
