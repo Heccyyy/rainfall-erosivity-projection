@@ -35,8 +35,6 @@ CHIRPS_END   = 2005
 WET_DAY_THRESHOLD = 1.0   # mm/day
 N_QUANTILES       = 100   # Number of quantile bins
 
-# How many days to write per chunk when streaming to disk.
-# 365 days = one year at a time — keeps RAM usage low.
 CHUNK_DAYS = 365
 
 
@@ -206,15 +204,18 @@ import netCDF4 as nc4
 def _nc4_append(out_path: Path, data: np.ndarray, times, var_name: str) -> None:
     with nc4.Dataset(out_path, "a") as nc_out:
         t_dim  = nc_out.variables["time"]
-        t_start = len(t_dim)                      # current length before append
+        t_start = len(t_dim)
         t_end   = t_start + len(times)
+        calendar = getattr(t_dim, "calendar", "standard")
+        units    = t_dim.units
 
-        # Append time values as numeric (units already set on first write)
-        t_num = nc4.date2num(
-            [t.datetime for t in times] if hasattr(times[0], "datetime") else list(times),
-            units    = t_dim.units,
-            calendar = getattr(t_dim, "calendar", "standard"),
-        )
+        if hasattr(times[0], "year"):
+            t_num = nc4.date2num(list(times), units=units, calendar=calendar)
+        else:
+            import pandas as pd
+            py_times = pd.DatetimeIndex(times).to_pydatetime().tolist()
+            t_num = nc4.date2num(py_times, units=units, calendar=calendar)
+
         t_dim[t_start:t_end] = t_num
 
         # Append data values
@@ -534,11 +535,11 @@ def prepare(chirps_dir, processed_dir, output_dir, chirps_start, chirps_end):
         f"\nRun bias correction with:\n"
         f"  python quantile_mapping.py apply --scenario rcp26\n"
         f"  python quantile_mapping.py apply --scenario rcp45\n"
-        f"  python quantile_mapping.py apply --scenario rcp85"
+        f"  python quantile_mapping.py apply --scenario rcp85\n"
+        f"  python quantile_mapping.py apply --scenario all"
     )
 
-
-# ===== Apply: core logic ──────
+# ===== Apply: core logic ====================
 
 def _run_one_scenario(
     scenario: str,
@@ -550,12 +551,6 @@ def _run_one_scenario(
     calib_end: int,
     save_transfer: bool,
 ) -> bool:
-    """
-    Run QM bias correction for a single scenario.
-    Returns True on success, False if the future input file is missing.
-    Obs and hist datasets are loaded inside this function so they are
-    released from RAM after each scenario when running --scenario all.
-    """
     future_path = Path(
         DEFAULT_OUTPUT_DIR / f"pr_day_{MODEL}_{scenario}_{ENSEMBLE}_jakarta_bc_input.nc"
     )
@@ -703,11 +698,6 @@ def _run_one_scenario(
 )
 def apply(obs, hist, scenario, output_dir, method,
           calib_start, calib_end, save_transfer):
-    """
-    Run quantile mapping bias correction.
-
-    Use --scenario all to process rcp26, rcp45, and rcp85 in one go.
-    """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
