@@ -234,7 +234,7 @@ def _nc4_append(out_path: Path, data: np.ndarray, times, var_name: str) -> None:
 def crop_chirps_year(nc_path: Path, bbox: dict = JAKARTA_BBOX) -> xr.Dataset:
     ds = xr.open_dataset(
         nc_path,
-        use_cftime=True,
+        decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
     )
 
     if "precip" not in ds:
@@ -359,7 +359,7 @@ def load_model_lazy(fpath: Path, label: str) -> xr.Dataset:
 
     ds = xr.open_dataset(
         fpath,
-        use_cftime=True,
+        decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
         chunks={"time": CHUNK_DAYS},
     )
 
@@ -579,13 +579,13 @@ def _run_one_scenario(
 
     # Load obs (CHIRPS)
     logger.info("Loading CHIRPS obs...")
-    ds_obs_full = xr.open_dataset(obs_path, use_cftime=True)
+    ds_obs_full = xr.open_dataset(obs_path, decode_times=xr.coders.CFDatetimeCoder(use_cftime=True))
     if "precip" in ds_obs_full and "pr" not in ds_obs_full:
         ds_obs_full = ds_obs_full.rename({"precip": "pr"})
 
     # Load historical model
     logger.info("Loading historical model...")
-    ds_hist_full = xr.open_dataset(hist_path, use_cftime=True)
+    ds_hist_full = xr.open_dataset(hist_path, decode_times=xr.coders.CFDatetimeCoder(use_cftime=True))
 
     # Slice to calibration period
     logger.info(f"Slicing to calibration period {calib_start}-{calib_end}...")
@@ -603,7 +603,7 @@ def _run_one_scenario(
 
     # Load future
     logger.info(f"Loading future scenario ({scenario})...")
-    ds_future = xr.open_dataset(future_path, use_cftime=True)
+    ds_future = xr.open_dataset(future_path, decode_times=xr.coders.CFDatetimeCoder(use_cftime=True))
     logger.info(f"  Future days: {len(ds_future.time):,}")
 
     # Run QM
