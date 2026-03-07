@@ -1,7 +1,6 @@
 import sys
 import numpy as np
 import xarray as xr
-from xarray.coding.times import CFDatetimeCoder
 from scipy import stats
 from scipy.interpolate import interp1d
 from pathlib import Path
@@ -35,6 +34,8 @@ CHIRPS_END   = 2005
 WET_DAY_THRESHOLD = 1.0   # mm/day
 N_QUANTILES       = 100   # Number of quantile bins
 
+# How many days to write per chunk when streaming to disk.
+# 365 days = one year at a time — keeps RAM usage low.
 CHUNK_DAYS = 365
 
 
@@ -204,7 +205,7 @@ import netCDF4 as nc4
 def _nc4_append(out_path: Path, data: np.ndarray, times, var_name: str) -> None:
     with nc4.Dataset(out_path, "a") as nc_out:
         t_dim  = nc_out.variables["time"]
-        t_start = len(t_dim)
+        t_start = len(t_dim)                      # current length before append
         t_end   = t_start + len(times)
         calendar = getattr(t_dim, "calendar", "standard")
         units    = t_dim.units
@@ -233,7 +234,7 @@ def _nc4_append(out_path: Path, data: np.ndarray, times, var_name: str) -> None:
 def crop_chirps_year(nc_path: Path, bbox: dict = JAKARTA_BBOX) -> xr.Dataset:
     ds = xr.open_dataset(
         nc_path,
-        decode_times=CFDatetimeCoder(use_cftime=True),
+        use_cftime=True,
     )
 
     if "precip" not in ds:
@@ -358,7 +359,7 @@ def load_model_lazy(fpath: Path, label: str) -> xr.Dataset:
 
     ds = xr.open_dataset(
         fpath,
-        decode_times=CFDatetimeCoder(use_cftime=True),
+        use_cftime=True,
         chunks={"time": CHUNK_DAYS},
     )
 
@@ -535,11 +536,11 @@ def prepare(chirps_dir, processed_dir, output_dir, chirps_start, chirps_end):
         f"\nRun bias correction with:\n"
         f"  python quantile_mapping.py apply --scenario rcp26\n"
         f"  python quantile_mapping.py apply --scenario rcp45\n"
-        f"  python quantile_mapping.py apply --scenario rcp85\n"
-        f"  python quantile_mapping.py apply --scenario all"
+        f"  python quantile_mapping.py apply --scenario rcp85"
     )
 
-# ===== Apply: core logic ====================
+
+# ===== Apply: core logic ──────
 
 def _run_one_scenario(
     scenario: str,
@@ -551,6 +552,12 @@ def _run_one_scenario(
     calib_end: int,
     save_transfer: bool,
 ) -> bool:
+    """
+    Run QM bias correction for a single scenario.
+    Returns True on success, False if the future input file is missing.
+    Obs and hist datasets are loaded inside this function so they are
+    released from RAM after each scenario when running --scenario all.
+    """
     future_path = Path(
         DEFAULT_OUTPUT_DIR / f"pr_day_{MODEL}_{scenario}_{ENSEMBLE}_jakarta_bc_input.nc"
     )
@@ -572,13 +579,13 @@ def _run_one_scenario(
 
     # Load obs (CHIRPS)
     logger.info("Loading CHIRPS obs...")
-    ds_obs_full = xr.open_dataset(obs_path, decode_times=CFDatetimeCoder(use_cftime=True))
+    ds_obs_full = xr.open_dataset(obs_path, use_cftime=True)
     if "precip" in ds_obs_full and "pr" not in ds_obs_full:
         ds_obs_full = ds_obs_full.rename({"precip": "pr"})
 
     # Load historical model
     logger.info("Loading historical model...")
-    ds_hist_full = xr.open_dataset(hist_path, decode_times=CFDatetimeCoder(use_cftime=True))
+    ds_hist_full = xr.open_dataset(hist_path, use_cftime=True)
 
     # Slice to calibration period
     logger.info(f"Slicing to calibration period {calib_start}-{calib_end}...")
@@ -596,7 +603,7 @@ def _run_one_scenario(
 
     # Load future
     logger.info(f"Loading future scenario ({scenario})...")
-    ds_future = xr.open_dataset(future_path, decode_times=CFDatetimeCoder(use_cftime=True))
+    ds_future = xr.open_dataset(future_path, use_cftime=True)
     logger.info(f"  Future days: {len(ds_future.time):,}")
 
     # Run QM
@@ -698,6 +705,11 @@ def _run_one_scenario(
 )
 def apply(obs, hist, scenario, output_dir, method,
           calib_start, calib_end, save_transfer):
+    """
+    Run quantile mapping bias correction.
+
+    Use --scenario all to process rcp26, rcp45, and rcp85 in one go.
+    """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
