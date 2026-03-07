@@ -1,10 +1,10 @@
 """
 rainfall_erosivity_ml.py
-========================
+==============================
 Random Forest model for predicting rainfall erosivity (R-factor) over the Special Capital Region of Jakarta using CMIP5 HadGEM2-AO precipitation indices.
 
 R-factor proxy
---------------
+====================
 The Modified Fournier Index (MFI) is used as the R-factor proxy because it requires only monthly/annual totals (no sub-daily data):
 
     MFI = sum_{m=1}^{12} (p_m^2 / P)
@@ -32,7 +32,7 @@ This produces R values in the correct physical range (~500–3000 MJ mm ha⁻¹ 
 for tropical Jakarta and is fully reproducible from the existing index files.
 
 Methods
---------
+====================
 1. Load indices NetCDF for every scenario (historical + rcp26/45/85).
 2. Spatial-mean across the Jakarta domain → one time series per scenario.
 3. Compute R_proxy target from PRCPTOT + Rx1day (equation 2).
@@ -42,7 +42,7 @@ Methods
 7. Save model (.pkl), metrics (.csv), predictions (.csv), and four figures.
 
 Outputs (results/models/ and results/figures/)
------------------------------------------------
+==================================================
   HadGEM2-AO_rf_erosivity_model.pkl       — trained RF model
   HadGEM2-AO_rf_metrics.csv               — RMSE, MAE, R² (CV + holdout)
   HadGEM2-AO_rf_predictions.csv           — year-by-year R predictions
