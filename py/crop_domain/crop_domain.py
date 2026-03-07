@@ -57,7 +57,7 @@ def process_file(
     pr_var: str = "pr",
 ) -> Path:
     logger.info(f"Processing: {input_path.name}")
-    ds = xr.open_dataset(input_path, use_cftime=True)
+    ds = xr.open_dataset(input_path, decode_times=xr.coders.CFDatetimeCoder(use_cftime=True))
 
     # Rename coordinate aliases (some models use 'latitude'/'longitude')
     rename_map = {}
