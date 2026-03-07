@@ -314,7 +314,7 @@ def compute_all_water_stress(
 # ===== Load helpers ===========================================================
 
 def _open_nc(fpath: Path) -> xr.Dataset:
-    return xr.open_dataset(fpath, use_cftime=True)
+    return xr.open_dataset(fpath, decode_times=xr.coders.CFDatetimeCoder(use_cftime=True))
 
 
 def _find_temp_file(scen: str, var: str, processed_dir: Path) -> Path | None:
