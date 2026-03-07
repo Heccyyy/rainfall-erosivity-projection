@@ -1,7 +1,6 @@
 import sys
 import xarray as xr
 import numpy as np
-from xarray.coding.times import CFDatetimeCoder
 from scipy import stats
 from pathlib import Path
 import click
@@ -249,7 +248,9 @@ def compute_water_stress_months(
     pet_monthly: xr.DataArray,
     threshold: float = 0.5,
 ) -> xr.DataArray:
+    """Annual count of months where P < threshold × PET."""
     stressed     = (pr_monthly < threshold * pet_monthly).astype(float)
+    # Align time coords so we can group by year
     years        = _get_years(stressed)
     unique_years = np.unique(years)
     import pandas as pd
@@ -271,7 +272,7 @@ def compute_all_water_stress(
     tmin_daily: xr.DataArray,
 ) -> xr.Dataset:
     lat_vals = pr_daily.lat.values
-    doy      = _get_doy(pr_daily)
+    doy      = _get_doy(pr_daily)      # cftime-safe day-of-year
 
     logger.info("  Computing PET (Hargreaves-Samani)...")
     pet_daily = hargreaves_pet(tmax_daily, tmin_daily, lat_vals, doy)
@@ -313,7 +314,7 @@ def compute_all_water_stress(
 # ===== Load helpers ===========================================================
 
 def _open_nc(fpath: Path) -> xr.Dataset:
-    return xr.open_dataset(fpath, decode_times=CFDatetimeCoder(use_cftime=True))
+    return xr.open_dataset(fpath, use_cftime=True)
 
 
 def _find_temp_file(scen: str, var: str, processed_dir: Path) -> Path | None:
@@ -426,6 +427,10 @@ def main(bc_dir, processed_dir, output_dir, scenario, method):
                 tmin = tmin - 273.15
                 tmax.attrs["units"] = "degC"
                 tmin.attrs["units"] = "degC"
+
+            # Align time axes with xr.align (inner join) — this is cftime-safe
+            # and avoids the set-hashing pitfall where cftime objects from
+            # different datasets may not compare equal even for the same date.
             try:
                 pr, tmax, tmin = xr.align(pr, tmax, tmin, join="inner", copy=False)
                 if len(pr.time) == 0:
@@ -450,6 +455,7 @@ def main(bc_dir, processed_dir, output_dir, scenario, method):
             tmax.attrs["units"] = "degC"
             tmin.attrs["units"] = "degC"
 
+        # Compute water stress metrics
         try:
             ds_out = compute_all_water_stress(pr, tmax, tmin)
             ds_out.attrs["scenario"] = scen
