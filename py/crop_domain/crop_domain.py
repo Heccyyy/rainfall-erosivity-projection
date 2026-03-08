@@ -12,10 +12,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # ===== Jakarta bounding box ====================
 JAKARTA_BBOX = {
-    "lat_min": -7.0,
-    "lat_max": -5.5,
-    "lon_min": 106.0,
-    "lon_max": 107.5,
+    "lat_min": -8.75,
+    "lat_max": -3.75,
+    "lon_min": 103.125,
+    "lon_max": 111.875,
 }
 
 MODEL = "HadGEM2-AO"                                      # Interchangable (e.g., MPI-ESM-MR, IPSL-CMSA-LR)
