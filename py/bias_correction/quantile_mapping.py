@@ -19,10 +19,10 @@ DEFAULT_PROCESSED_DIR = PROJECT_ROOT / "py" / "esgf" / "processed"
 DEFAULT_OUTPUT_DIR    = PROJECT_ROOT / "py" / "esgf" / "bias_corrected"
 
 JAKARTA_BBOX = {
-    "lat_min": -7.0,
-    "lat_max": -5.5,
-    "lon_min": 106.0,
-    "lon_max": 107.5,
+    "lat_min": -8.75,
+    "lat_max": -3.75,
+    "lon_min": 103.125,
+    "lon_max": 111.875,
 }
 
 MODEL        = "HadGEM2-AO"
@@ -154,7 +154,7 @@ def apply_bias_correction_spatial(
     pr_var: str = "pr",
 ) -> xr.DataArray:
     # Regrid obs (CHIRPS 0.25°) and hist to the model grid using nearest-neighbour.
-    # (The reason is because there were lots of NaNs after interpolation. 😭) 
+    # The reason is because there were lots of NaNs after interpolation. 😭 
     model_lat = future_ds[pr_var].lat
     model_lon = future_ds[pr_var].lon
     obs_regrid  = obs_ds[pr_var].interp(lat=model_lat, lon=model_lon, method="nearest")
